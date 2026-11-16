@@ -73,6 +73,7 @@ a:hover{text-decoration:underline}
     <div class="full actions">
       <button class="primary" id="searchBtn">جستجو</button>
       <button class="ghost" id="pdfBtn" disabled>ذخیره PDF</button>
+      <button class="ghost" id="csvBtn" disabled>خروجی اکسل</button>
     </div>
   </section>
 
@@ -125,6 +126,7 @@ async function fetchShops(city, query){
   ];
 }
 
+let lastList = [];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const dash = "—";
 const tel = n => n ? `<a href="tel:${esc(n)}" dir="ltr">${esc(n)}</a>` : dash;
@@ -143,10 +145,11 @@ function dedupe(list){
 
 $("searchBtn").addEventListener("click", async () => {
   const btn = $("searchBtn");
-  btn.disabled = true; $("pdfBtn").disabled = true;
+  btn.disabled = true; $("pdfBtn").disabled = true; $("csvBtn").disabled = true;
   $("status").textContent = "در حال جستجو...";
   try{
     const list = dedupe(await fetchShops(cityEl.value, $("query").value.trim()));
+    lastList = list;
     $("rows").innerHTML = list.map(s => `<tr>
       <td>${esc(s.name)}</td><td>${esc(s.owner)}</td><td>${tel(s.phone)}</td><td>${wa(s.whatsapp)}</td>
       <td>${ig(s.instagram)}</td><td>${tg(s.telegram)}</td><td>${esc(s.address)}</td>
@@ -155,6 +158,7 @@ $("searchBtn").addEventListener("click", async () => {
     $("empty").textContent = "فروشگاهی پیدا نشد. عبارت جستجو را تغییر دهید.";
     $("status").textContent = `${list.length} فروشگاه در ${cityEl.value} پیدا شد.`;
     $("pdfBtn").disabled = !list.length;
+    $("csvBtn").disabled = !list.length;
   }catch(e){
     $("status").textContent = "جستجو انجام نشد. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.";
   }finally{
@@ -164,6 +168,27 @@ $("searchBtn").addEventListener("click", async () => {
 
 // در پنجره چاپ، «ذخیره به‌صورت PDF» را انتخاب کنید
 $("pdfBtn").addEventListener("click", () => window.print());
+
+
+// خروجی اکسل (CSV) با لینک‌های کامل؛ برای گوشی
+$("csvBtn").addEventListener("click", () => {
+  const q = v => '"' + String(v || "").replace(/"/g, '""') + '"';
+  const phone = v => v ? '="' + v + '"' : "";
+  const head = ["نام فروشگاه","صاحب","تلفن","لینک واتساپ","لینک اینستاگرام","لینک تلگرام","آدرس","لینک نقشه"];
+  const rows = lastList.map(s => [
+    q(s.name), q(s.owner === "—" ? "" : s.owner), phone(s.phone),
+    q(s.whatsapp ? "https://wa.me/98" + s.whatsapp.replace(/^0/, "") : ""),
+    q(s.instagram ? "https://instagram.com/" + s.instagram : ""),
+    q(s.telegram ? "https://t.me/" + s.telegram : ""),
+    q(s.address), q(s.map)
+  ].join(","));
+  const text = "\uFEFF" + [head.map(q).join(","), ...rows].join("\r\n");
+  const blob = new Blob([text], {type: "text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "veyma-" + cityEl.value + ".csv";
+  document.body.appendChild(a); a.click(); a.remove();
+});
 
 fillProvinces();
 </script>
