@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مشتری‌یاب ویما</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#faf5f7; --card:#ffffff; --ink:#2a1c24; --muted:#7a6670;
+  --brand:#9b2a5b; --brand-ink:#ffffff; --line:#ecdde4; --ok:#1f7a4d;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#1a1217; --card:#251a21; --ink:#f4e9ee; --muted:#b9a3ad; --brand:#e0679b; --brand-ink:#1a1217; --line:#3a2a33; --ok:#5fd09a; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Vazirmatn,Tahoma,sans-serif;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:20px 16px 48px}
+header{padding:12px 0 20px}
+h1{margin:0;font-size:1.8rem;font-weight:800;color:var(--brand)}
+header p{margin:4px 0 0;color:var(--muted)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
+select,input{width:100%;padding:11px 12px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px}
+select:focus,input:focus,button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.full{grid-column:1/-1}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+button{font:inherit;font-weight:600;padding:12px 20px;border-radius:10px;border:1px solid var(--brand);cursor:pointer}
+.primary{background:var(--brand);color:var(--brand-ink)}
+.ghost{background:transparent;color:var(--brand)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.status{margin:16px 0 8px;color:var(--muted);font-size:.9rem}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+table{width:100%;border-collapse:collapse;min-width:680px}
+th,td{padding:11px 12px;text-align:right;border-bottom:1px solid var(--line);font-size:.92rem;vertical-align:top}
+th{background:var(--bg);color:var(--muted);font-weight:600}
+tr:last-child td{border-bottom:0}
+a{color:var(--brand);font-weight:600;text-decoration:none}
+a:hover{text-decoration:underline}
+.empty{padding:32px 16px;text-align:center;color:var(--muted)}
+.note{margin-top:20px;font-size:.82rem;color:var(--muted)}
+@media print{
+  body{background:#fff;color:#000}
+  .panel,.actions,.status,.note{display:none}
+  .scroll{border:0}
+  a{color:#000}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>مشتری‌یاب ویما</h1>
+    <p>فروشگاه‌های لباس زنانه را در شهر موردنظر پیدا کنید.</p>
+  </header>
+
+  <section class="panel">
+    <div>
+      <label for="country">کشور</label>
+      <select id="country"><option value="ایران">ایران</option></select>
+    </div>
+    <div>
+      <label for="province">استان</label>
+      <select id="province"></select>
+    </div>
+    <div>
+      <label for="city">شهر</label>
+      <select id="city"></select>
+    </div>
+    <div class="full">
+      <label for="query">نوع فروشگاه</label>
+      <input id="query" value="بوتیک لباس زنانه" placeholder="مثلاً مزون، لباس خانگی، بوتیک">
+    </div>
+    <div class="full actions">
+      <button class="primary" id="searchBtn">جستجو</button>
+      <button class="ghost" id="pdfBtn" disabled>ذخیره PDF</button>
+    </div>
+  </section>
+
+  <div class="status" id="status"></div>
+
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>نام فروشگاه</th><th>صاحب</th><th>تلفن</th><th>واتساپ</th>
+          <th>اینستاگرام</th><th>تلگرام</th><th>آدرس</th><th>نقشه</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty">هنوز جستجویی انجام نشده است. شهر را انتخاب کنید و «جستجو» را بزنید.</div>
+  </div>
+
+  <p class="note">نسخه اولیه: داده‌های زیر نمونه‌اند و بعداً به منبع واقعی وصل می‌شوند.</p>
+</div>
+
+<script>
+// فهرست اولیه؛ بعداً کامل‌تر می‌شود
+const places = {
+  "تهران": ["تهران","ری","شهریار"],
+  "اصفهان": ["اصفهان","کاشان","نجف‌آباد"],
+  "خراسان رضوی": ["مشهد","نیشابور","سبزوار"],
+  "فارس": ["شیراز","مرودشت","کازرون"],
+  "آذربایجان شرقی": ["تبریز","مراغه","مرند"]
+};
+
+const $ = id => document.getElementById(id);
+const provinceEl = $("province"), cityEl = $("city");
+
+function fillProvinces(){
+  provinceEl.innerHTML = Object.keys(places).map(p => `<option>${p}</option>`).join("");
+  fillCities();
+}
+function fillCities(){
+  cityEl.innerHTML = places[provinceEl.value].map(c => `<option>${c}</option>`).join("");
+}
+provinceEl.addEventListener("change", fillCities);
+
+// داده نمونه؛ این تابع بعداً به بک‌اند (Cloudflare Worker) وصل می‌شود
+async function fetchShops(city, query){
+  await new Promise(r => setTimeout(r, 400));
+  return [
+    {name:"بوتیک نمونه ۱", owner:"—", phone:"09120000001", whatsapp:"09120000001", instagram:"example1", telegram:"", address:`${city}، خیابان نمونه`, map:`https://www.google.com/maps/search/${encodeURIComponent(query+" "+city)}`},
+    {name:"مزون نمونه ۲", owner:"—", phone:"09120000002", whatsapp:"", instagram:"example2", telegram:"example2", address:`${city}، بلوار نمونه`, map:`https://www.google.com/maps/search/${encodeURIComponent(query+" "+city)}`}
+  ];
+}
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const dash = "—";
+const tel = n => n ? `<a href="tel:${esc(n)}" dir="ltr">${esc(n)}</a>` : dash;
+const wa  = n => n ? `<a href="https://wa.me/98${esc(n.replace(/^0/,""))}" target="_blank" rel="noopener">باز کردن</a>` : dash;
+const ig  = u => u ? `<a href="https://instagram.com/${esc(u)}" target="_blank" rel="noopener" dir="ltr">@${esc(u)}</a>` : dash;
+const tg  = u => u ? `<a href="https://t.me/${esc(u)}" target="_blank" rel="noopener" dir="ltr">@${esc(u)}</a>` : dash;
+
+function dedupe(list){
+  const seen = new Set();
+  return list.filter(s => {
+    const k = s.phone || s.name + s.address;
+    if(seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+}
+
+$("searchBtn").addEventListener("click", async () => {
+  const btn = $("searchBtn");
+  btn.disabled = true; $("pdfBtn").disabled = true;
+  $("status").textContent = "در حال جستجو...";
+  try{
+    const list = dedupe(await fetchShops(cityEl.value, $("query").value.trim()));
+    $("rows").innerHTML = list.map(s => `<tr>
+      <td>${esc(s.name)}</td><td>${esc(s.owner)}</td><td>${tel(s.phone)}</td><td>${wa(s.whatsapp)}</td>
+      <td>${ig(s.instagram)}</td><td>${tg(s.telegram)}</td><td>${esc(s.address)}</td>
+      <td><a href="${esc(s.map)}" target="_blank" rel="noopener">مشاهده</a></td></tr>`).join("");
+    $("empty").style.display = list.length ? "none" : "block";
+    $("empty").textContent = "فروشگاهی پیدا نشد. عبارت جستجو را تغییر دهید.";
+    $("status").textContent = `${list.length} فروشگاه در ${cityEl.value} پیدا شد.`;
+    $("pdfBtn").disabled = !list.length;
+  }catch(e){
+    $("status").textContent = "جستجو انجام نشد. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.";
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+// در پنجره چاپ، «ذخیره به‌صورت PDF» را انتخاب کنید
+$("pdfBtn").addEventListener("click", () => window.print());
+
+fillProvinces();
+</script>
+</body>
+</html>
